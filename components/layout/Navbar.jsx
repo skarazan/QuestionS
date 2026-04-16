@@ -33,18 +33,16 @@ export default function Navbar() {
 
             {session ? (
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button className="flex items-center gap-2 focus:outline-none">
-                    <Avatar className="h-8 w-8">
-                      <AvatarImage src={session.user?.image} />
-                      <AvatarFallback className="bg-blue-600 text-white text-xs">
-                        {session.user?.name?.[0]?.toUpperCase() || "U"}
-                      </AvatarFallback>
-                    </Avatar>
-                    <span className="text-slate-300 text-sm hidden sm:block">
-                      {session.user?.name || session.user?.email}
-                    </span>
-                  </button>
+                <DropdownMenuTrigger className="flex items-center gap-2 focus:outline-none bg-transparent border-0 p-0 cursor-pointer">
+                  <Avatar className="h-8 w-8">
+                    <AvatarImage src={session.user?.image} />
+                    <AvatarFallback className="bg-blue-600 text-white text-xs">
+                      {session.user?.name?.[0]?.toUpperCase() || "U"}
+                    </AvatarFallback>
+                  </Avatar>
+                  <span className="text-slate-300 text-sm hidden sm:block">
+                    {session.user?.name || session.user?.email}
+                  </span>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent
                   align="end"
@@ -55,10 +53,11 @@ export default function Navbar() {
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-slate-700" />
                   {session.user?.role === "admin" && (
-                    <DropdownMenuItem asChild>
-                      <Link href="/admin" className="hover:text-white cursor-pointer">
-                        Admin Dashboard
-                      </Link>
+                    <DropdownMenuItem
+                      onClick={() => (window.location.href = "/admin")}
+                      className="hover:text-white cursor-pointer"
+                    >
+                      Admin Dashboard
                     </DropdownMenuItem>
                   )}
                   <DropdownMenuItem

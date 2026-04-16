@@ -1,7 +1,6 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -28,24 +27,24 @@ export default function AdminCourseActions({ courseId }) {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button className="text-slate-500 hover:text-white p-1 rounded transition-colors">
-          <MoreHorizontal className="h-4 w-4" />
-        </button>
+      <DropdownMenuTrigger className="text-slate-500 hover:text-white p-1 rounded transition-colors bg-transparent border-0 cursor-pointer">
+        <MoreHorizontal className="h-4 w-4" />
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
         className="bg-[#243447] border-slate-700 text-slate-300"
       >
-        <DropdownMenuItem asChild>
-          <Link href={`/admin/courses/${courseId}`} className="cursor-pointer hover:text-white">
-            <Eye className="h-4 w-4 mr-2" /> Manage Topics
-          </Link>
+        <DropdownMenuItem
+          onClick={() => router.push(`/admin/courses/${courseId}`)}
+          className="cursor-pointer hover:text-white"
+        >
+          <Eye className="h-4 w-4 mr-2" /> Manage Topics
         </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href={`/admin/courses/${courseId}/edit`} className="cursor-pointer hover:text-white">
-            <Pencil className="h-4 w-4 mr-2" /> Edit
-          </Link>
+        <DropdownMenuItem
+          onClick={() => router.push(`/admin/courses/${courseId}/edit`)}
+          className="cursor-pointer hover:text-white"
+        >
+          <Pencil className="h-4 w-4 mr-2" /> Edit
         </DropdownMenuItem>
         <DropdownMenuSeparator className="bg-slate-700" />
         <DropdownMenuItem
