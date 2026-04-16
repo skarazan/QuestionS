@@ -1,0 +1,184 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================
+// ADMIN (separate from user — single account)
+// ============================================
+
+model Admin {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// ============================================
+// USER (students)
+// ============================================
+
+model User {
+  id            String        @id @default(cuid())
+  email         String        @unique
+  password      String?
+  name          String?
+  image         String?
+  emailVerified DateTime?
+  accounts      Account[]
+  sessions      Session[]
+  attempts      QuizAttempt[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// ============================================
+// CONTENT
+// ============================================
+
+model Course {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  slug        String   @unique
+  imageUrl    String?
+  order       Int      @default(0)
+  isPublished Boolean  @default(false)
+  topics      Topic[]
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([slug])
+}
+
+model Topic {
+  id          String        @id @default(cuid())
+  courseId    String
+  course      Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  slug        String
+  order       Int           @default(0)
+  isPublished Boolean       @default(false)
+  questions   Question[]
+  attempts    QuizAttempt[]
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  @@unique([courseId, slug])
+  @@index([courseId])
+}
+
+model Question {
+  id              String                @id @default(cuid())
+  topicId         String
+  topic           Topic                 @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  text            String                @db.Text
+  explanation     String?               @db.Text
+  showExplanation Boolean               @default(true)
+  showAnswers     Boolean               @default(true)
+  order           Int                   @default(0)
+  difficulty      Difficulty            @default(MEDIUM)
+  options         Option[]
+  attemptAnswers  QuizAttemptQuestion[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([topicId])
+}
+
+model Option {
+  id         String   @id @default(cuid())
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  text       String   @db.Text
+  isCorrect  Boolean  @default(false)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([questionId])
+}
+
+// ============================================
+// QUIZ ATTEMPTS
+// ============================================
+
+model QuizAttempt {
+  id              String                @id @default(cuid())
+  userId          String
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  topicId         String
+  topic           Topic                 @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  totalQuestions  Int
+  correctAnswers  Int                   @default(0)
+  scorePercentage Float?
+  completedAt     DateTime?
+  answers         QuizAttemptQuestion[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([userId])
+  @@index([topicId])
+}
+
+model QuizAttemptQuestion {
+  id               String      @id @default(cuid())
+  attemptId        String
+  attempt          QuizAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId String?
+  isCorrect        Boolean?
+  createdAt        DateTime    @default(now())
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+}
+
+enum Difficulty {
+  EASY
+  MEDIUM
+  HARD
+}
