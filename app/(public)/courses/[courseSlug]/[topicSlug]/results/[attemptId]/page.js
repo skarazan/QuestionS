@@ -38,10 +38,11 @@ async function getAttempt(attemptId, userId) {
 }
 
 export default async function ResultsPage({ params }) {
+  const { attemptId } = await params;
   const session = await auth();
   if (!session) redirect("/login");
 
-  const attempt = await getAttempt(params.attemptId, session.user.id);
+  const attempt = await getAttempt(attemptId, session.user.id);
   if (!attempt) notFound();
 
   const topic = attempt.topic;

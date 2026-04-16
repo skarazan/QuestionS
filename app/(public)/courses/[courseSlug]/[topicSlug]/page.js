@@ -32,8 +32,9 @@ async function getTopic(courseSlug, topicSlug) {
 }
 
 export default async function TopicPage({ params }) {
+  const { courseSlug, topicSlug } = await params;
   const session = await auth();
-  const topic = await getTopic(params.courseSlug, params.topicSlug);
+  const topic = await getTopic(courseSlug, topicSlug);
   if (!topic) notFound();
 
   return (

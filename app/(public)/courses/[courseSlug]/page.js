@@ -18,8 +18,9 @@ async function getCourse(slug) {
 }
 
 export async function generateMetadata({ params }) {
+  const { courseSlug } = await params;
   const course = await prisma.course.findUnique({
-    where: { slug: params.courseSlug },
+    where: { slug: courseSlug },
     select: { title: true, description: true },
   });
   return {
@@ -29,7 +30,8 @@ export async function generateMetadata({ params }) {
 }
 
 export default async function CoursePage({ params }) {
-  const course = await getCourse(params.courseSlug);
+  const { courseSlug } = await params;
+  const course = await getCourse(courseSlug);
   if (!course) notFound();
 
   const difficultyColors = {
