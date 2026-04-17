@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { topicSchema } from "@/lib/validations";
 import { ZodError } from "zod";
+import { logger } from "@/lib/logger";
 
 async function requireAdmin() {
   const session = await auth();
@@ -40,7 +41,7 @@ export async function POST(req, { params }) {
     if (err.code === "P2002") {
       return NextResponse.json({ error: "Slug already exists in this course" }, { status: 400 });
     }
-    console.error(err);
-    return NextResponse.json({ error: "Failed to create topic" }, { status: 500 });
+    logger.error("admin_topic_create_failed", err, { path: "/api/admin/courses/[id]/topics" });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

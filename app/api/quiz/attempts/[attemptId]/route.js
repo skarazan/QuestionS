@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { getTopicPercentile, getCoursePercentile } from "@/lib/percentile";
+import { logger } from "@/lib/logger";
 
 export async function GET(req, { params }) {
   try {
@@ -61,7 +62,7 @@ export async function GET(req, { params }) {
       answers: sanitizedAnswers,
     });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Failed to fetch results" }, { status: 500 });
+    logger.error("attempt_results_failed", err, { path: "/api/quiz/attempts/[id]" });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

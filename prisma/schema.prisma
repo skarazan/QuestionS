@@ -24,8 +24,8 @@ model Admin {
 // ============================================
 
 model User {
-  id            String        @id @default(cuid())
-  email         String        @unique
+  id            String         @id @default(cuid())
+  email         String         @unique
   password      String?
   name          String?
   image         String?
@@ -33,8 +33,9 @@ model User {
   accounts      Account[]
   sessions      Session[]
   attempts      QuizAttempt[]
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  mockAttempts  MockAttempt[]
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
 }
 
 model Account {
@@ -54,6 +55,7 @@ model Account {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
+  @@index([userId])
 }
 
 model Session {
@@ -62,6 +64,8 @@ model Session {
   userId       String
   expires      DateTime
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
 }
 
 model VerificationToken {
@@ -70,6 +74,7 @@ model VerificationToken {
   expires    DateTime
 
   @@unique([identifier, token])
+  @@index([identifier])
 }
 
 // ============================================
@@ -102,6 +107,7 @@ model Topic {
   isPublished Boolean       @default(false)
   questions   Question[]
   attempts    QuizAttempt[]
+  mockTests   MockTest[]
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
@@ -121,6 +127,8 @@ model Question {
   difficulty      Difficulty            @default(MEDIUM)
   options         Option[]
   attemptAnswers  QuizAttemptQuestion[]
+  mockAnswers     MockAttemptQuestion[]
+  mockTests       MockTestQuestion[]
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 
@@ -141,7 +149,7 @@ model Option {
 }
 
 // ============================================
-// QUIZ ATTEMPTS
+// QUIZ ATTEMPTS (practice — UWorld style)
 // ============================================
 
 model QuizAttempt {
@@ -153,6 +161,7 @@ model QuizAttempt {
   totalQuestions  Int
   correctAnswers  Int                   @default(0)
   scorePercentage Float?
+  startedAt       DateTime              @default(now())
   completedAt     DateTime?
   answers         QuizAttemptQuestion[]
   createdAt       DateTime              @default(now())
@@ -160,6 +169,8 @@ model QuizAttempt {
 
   @@index([userId])
   @@index([topicId])
+  @@index([topicId, completedAt])
+  @@index([userId, topicId])
 }
 
 model QuizAttemptQuestion {
@@ -170,6 +181,79 @@ model QuizAttemptQuestion {
   question         Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
   selectedOptionId String?
   isCorrect        Boolean?
+  answeredAt       DateTime?
+  createdAt        DateTime    @default(now())
+
+  @@unique([attemptId, questionId])
+  @@index([attemptId])
+}
+
+// ============================================
+// MOCK TESTS (timed exam mode)
+// ============================================
+
+model MockTest {
+  id              String             @id @default(cuid())
+  topicId         String
+  topic           Topic              @relation(fields: [topicId], references: [id], onDelete: Cascade)
+  title           String
+  description     String?
+  durationMinutes Int
+  isPublished     Boolean            @default(false)
+  questions       MockTestQuestion[]
+  attempts        MockAttempt[]
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  @@index([topicId])
+}
+
+model MockTestQuestion {
+  id         String   @id @default(cuid())
+  mockTestId String
+  mockTest   MockTest @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
+  questionId String
+  question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  order      Int      @default(0)
+  createdAt  DateTime @default(now())
+
+  @@unique([mockTestId, questionId])
+  @@index([mockTestId])
+  @@index([questionId])
+}
+
+model MockAttempt {
+  id              String                @id @default(cuid())
+  userId          String
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mockTestId      String
+  mockTest        MockTest              @relation(fields: [mockTestId], references: [id], onDelete: Cascade)
+  totalQuestions  Int
+  correctAnswers  Int                   @default(0)
+  scorePercentage Float?
+  startedAt       DateTime              @default(now())
+  deadlineAt      DateTime
+  completedAt     DateTime?
+  autoSubmitted   Boolean               @default(false)
+  answers         MockAttemptQuestion[]
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+
+  @@index([userId])
+  @@index([mockTestId])
+  @@index([userId, mockTestId])
+  @@index([mockTestId, completedAt])
+}
+
+model MockAttemptQuestion {
+  id               String      @id @default(cuid())
+  attemptId        String
+  attempt          MockAttempt @relation(fields: [attemptId], references: [id], onDelete: Cascade)
+  questionId       String
+  question         Question    @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOptionId String?
+  isCorrect        Boolean?
+  answeredAt       DateTime?
   createdAt        DateTime    @default(now())
 
   @@unique([attemptId, questionId])

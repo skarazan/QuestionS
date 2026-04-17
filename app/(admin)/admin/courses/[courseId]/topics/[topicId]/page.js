@@ -4,7 +4,8 @@ import prisma from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import AdminQuestionActions from "@/components/admin/AdminQuestionActions";
-import { Plus, Pencil, CheckCircle } from "lucide-react";
+import AdminMockTestActions from "@/components/admin/AdminMockTestActions";
+import { Plus, Pencil, CheckCircle, Timer } from "lucide-react";
 
 async function getTopic(topicId) {
   return prisma.topic.findUnique({
@@ -14,6 +15,10 @@ async function getTopic(topicId) {
       questions: {
         orderBy: { order: "asc" },
         include: { options: { orderBy: { order: "asc" } } },
+      },
+      mockTests: {
+        orderBy: { createdAt: "desc" },
+        include: { _count: { select: { questions: true, attempts: true } } },
       },
     },
   });
@@ -63,6 +68,81 @@ export default async function AdminTopicPage({ params }) {
             </Link>
           </Button>
         </div>
+      </div>
+
+      {/* Mock Tests Section */}
+      <div className="mb-8">
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <Timer className="h-4 w-4 text-blue-400" />
+            <h2 className="text-white font-semibold">Mock Tests</h2>
+            <span className="text-slate-500 text-xs">
+              {topic.mockTests.length} total
+            </span>
+          </div>
+          <Button
+            asChild
+            size="sm"
+            variant="outline"
+            className="border-slate-600 text-slate-300 hover:bg-slate-700"
+          >
+            <Link href={`/admin/courses/${courseId}/topics/${topicId}/mock-tests/new`}>
+              <Plus className="h-3.5 w-3.5 mr-1.5" /> New Mock Test
+            </Link>
+          </Button>
+        </div>
+
+        {topic.mockTests.length === 0 ? (
+          <div className="bg-[#1f2937] border border-slate-700 rounded-lg p-6 text-center">
+            <p className="text-slate-500 text-sm">No mock tests yet.</p>
+          </div>
+        ) : (
+          <div className="grid gap-2">
+            {topic.mockTests.map((m) => (
+              <div
+                key={m.id}
+                className="bg-[#1f2937] border border-slate-700 rounded-lg p-4 flex items-center justify-between"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="text-white font-medium truncate">{m.title}</span>
+                    <Badge
+                      className={
+                        m.isPublished
+                          ? "bg-emerald-900 text-emerald-300"
+                          : "bg-slate-700 text-slate-400"
+                      }
+                    >
+                      {m.isPublished ? "Published" : "Draft"}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-1">
+                    <span className="flex items-center gap-1">
+                      <Timer className="h-3 w-3" /> {m.durationMinutes} min
+                    </span>
+                    <span>·</span>
+                    <span>{m._count.questions} question{m._count.questions !== 1 ? "s" : ""}</span>
+                    <span>·</span>
+                    <span>{m._count.attempts} attempt{m._count.attempts !== 1 ? "s" : ""}</span>
+                  </div>
+                </div>
+                <AdminMockTestActions
+                  courseId={courseId}
+                  topicId={topicId}
+                  mockTestId={m.id}
+                />
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {/* Questions Section header */}
+      <div className="flex items-center gap-2 mb-3">
+        <h2 className="text-white font-semibold">Questions</h2>
+        <span className="text-slate-500 text-xs">
+          {topic.questions.length} total
+        </span>
       </div>
 
       {topic.questions.length === 0 ? (

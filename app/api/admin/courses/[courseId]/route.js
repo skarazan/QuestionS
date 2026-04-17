@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { courseSchema } from "@/lib/validations";
 import { ZodError } from "zod";
+import { logger } from "@/lib/logger";
 
 async function requireAdmin() {
   const session = await auth();
@@ -40,8 +41,8 @@ export async function PUT(req, { params }) {
   } catch (err) {
     if (err instanceof ZodError) return NextResponse.json({ error: err.errors }, { status: 400 });
     if (err.code === "P2002") return NextResponse.json({ error: "Slug already exists" }, { status: 400 });
-    console.error(err);
-    return NextResponse.json({ error: "Failed to update course" }, { status: 500 });
+    logger.error("admin_course_update_failed", err, { path: "/api/admin/courses/[id]" });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
@@ -53,7 +54,7 @@ export async function DELETE(req, { params }) {
     await prisma.course.delete({ where: { id: courseId } });
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Failed to delete course" }, { status: 500 });
+    logger.error("admin_course_delete_failed", err, { path: "/api/admin/courses/[id]" });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

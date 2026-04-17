@@ -1,7 +1,11 @@
 import Link from "next/link";
+import Image from "next/image";
 import prisma from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, ChevronRight } from "lucide-react";
+
+// Public course listing rarely changes — cache for 60s (admin edits picked up within 1 min)
+export const revalidate = 60;
 
 async function getCourses() {
   return prisma.course.findMany({
@@ -39,11 +43,15 @@ export default async function HomePage() {
             <Link key={course.id} href={`/courses/${course.slug}`}>
               <div className="bg-[#243447] border border-slate-700 rounded-lg p-6 hover:border-blue-500 hover:bg-[#2a3d55] transition-all group cursor-pointer h-full">
                 {course.imageUrl && (
-                  <img
-                    src={course.imageUrl}
-                    alt={course.title}
-                    className="w-full h-32 object-cover rounded mb-4 opacity-80"
-                  />
+                  <div className="relative w-full h-32 mb-4 rounded overflow-hidden opacity-80">
+                    <Image
+                      src={course.imageUrl}
+                      alt={course.title}
+                      fill
+                      sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                      className="object-cover"
+                    />
+                  </div>
                 )}
                 <div className="flex items-start justify-between">
                   <h2 className="text-white font-semibold text-lg leading-snug group-hover:text-blue-300 transition-colors">

@@ -3,7 +3,7 @@ import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import QuizContainer from "@/components/quiz/QuizContainer";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Timer, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 async function getTopic(courseSlug, topicSlug) {
@@ -25,6 +25,17 @@ async function getTopic(courseSlug, topicSlug) {
           },
         },
       },
+      mockTests: {
+        where: { isPublished: true },
+        orderBy: { createdAt: "desc" },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          durationMinutes: true,
+          _count: { select: { questions: true } },
+        },
+      },
     },
   });
   if (!topic) return null;
@@ -37,10 +48,12 @@ export default async function TopicPage({ params }) {
   const topic = await getTopic(courseSlug, topicSlug);
   if (!topic) notFound();
 
+  const isQuizActive = topic.questions.length > 0 && !!session;
+
   return (
-    <div className="max-w-4xl mx-auto px-4 py-8">
+    <div className={isQuizActive ? "w-full px-4 py-6 2xl:px-8" : "max-w-4xl mx-auto px-4 py-8"}>
       {/* Breadcrumb */}
-      <div className="flex items-center gap-2 text-sm text-slate-400 mb-6">
+      <div className="flex items-center gap-2 text-sm text-slate-400 mb-4">
         <Link href="/" className="hover:text-white transition-colors">Courses</Link>
         <span>/</span>
         <Link href={`/courses/${topic.course.slug}`} className="hover:text-white transition-colors">
@@ -50,15 +63,56 @@ export default async function TopicPage({ params }) {
         <span className="text-slate-300">{topic.title}</span>
       </div>
 
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-white">{topic.title}</h1>
-        {topic.description && (
-          <p className="text-slate-400 mt-1">{topic.description}</p>
-        )}
-        <p className="text-slate-500 text-sm mt-2">
-          {topic.questions.length} question{topic.questions.length !== 1 ? "s" : ""}
-        </p>
-      </div>
+      {!isQuizActive && (
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-white">{topic.title}</h1>
+          {topic.description && (
+            <p className="text-slate-400 mt-1">{topic.description}</p>
+          )}
+          <p className="text-slate-500 text-sm mt-2">
+            {topic.questions.length} question{topic.questions.length !== 1 ? "s" : ""}
+          </p>
+        </div>
+      )}
+
+      {/* Mock Tests — only when not in active quiz */}
+      {!isQuizActive && topic.mockTests.length > 0 && (
+        <div className="mb-8">
+          <div className="flex items-center gap-2 mb-3">
+            <Timer className="h-4 w-4 text-blue-400" />
+            <h2 className="text-white font-semibold">Mock Tests</h2>
+          </div>
+          <div className="grid gap-2">
+            {topic.mockTests.map((m) => (
+              <Link
+                key={m.id}
+                href={`/courses/${topic.course.slug}/${topic.slug}/mock-tests/${m.id}`}
+                className="bg-[#1f2937] border border-slate-700 hover:border-blue-500 rounded-lg p-4 flex items-center justify-between transition-colors"
+              >
+                <div className="min-w-0 flex-1">
+                  <div className="text-white font-medium">{m.title}</div>
+                  {m.description && (
+                    <p className="text-slate-400 text-sm mt-0.5 line-clamp-1">
+                      {m.description}
+                    </p>
+                  )}
+                  <div className="flex items-center gap-3 text-xs text-slate-500 mt-2">
+                    <span className="flex items-center gap-1">
+                      <Timer className="h-3 w-3" /> {m.durationMinutes} min
+                    </span>
+                    <span>·</span>
+                    <span>
+                      {m._count.questions} question
+                      {m._count.questions !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                </div>
+                <ChevronRight className="h-5 w-5 text-slate-500 flex-shrink-0 ml-2" />
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       {topic.questions.length === 0 ? (
         <div className="text-center py-16 text-slate-500">

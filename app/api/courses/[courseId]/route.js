@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { logger } from "@/lib/logger";
 
 export async function GET(req, { params }) {
   try {
@@ -17,7 +18,7 @@ export async function GET(req, { params }) {
     if (!course) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json(course);
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Failed to fetch course" }, { status: 500 });
+    logger.error("course_get_failed", err, { path: "/api/courses/[id]" });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }

@@ -4,6 +4,9 @@ import prisma from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, ChevronRight, ArrowLeft } from "lucide-react";
 
+// Cache topic listings for 60s (public, low-churn content)
+export const revalidate = 60;
+
 async function getCourse(slug) {
   return prisma.course.findUnique({
     where: { slug, isPublished: true },

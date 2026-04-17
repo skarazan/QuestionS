@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { topicSchema } from "@/lib/validations";
 import { ZodError } from "zod";
+import { logger } from "@/lib/logger";
 
 async function requireAdmin() {
   const session = await auth();
@@ -41,8 +42,8 @@ export async function PUT(req, { params }) {
     return NextResponse.json(topic);
   } catch (err) {
     if (err instanceof ZodError) return NextResponse.json({ error: err.errors }, { status: 400 });
-    console.error(err);
-    return NextResponse.json({ error: "Failed to update topic" }, { status: 500 });
+    logger.error("admin_topic_update_failed", err, { path: "/api/admin/courses/[id]/topics/[id]" });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
 
@@ -54,7 +55,7 @@ export async function DELETE(req, { params }) {
     await prisma.topic.delete({ where: { id: topicId } });
     return NextResponse.json({ success: true });
   } catch (err) {
-    console.error(err);
-    return NextResponse.json({ error: "Failed to delete topic" }, { status: 500 });
+    logger.error("admin_topic_delete_failed", err, { path: "/api/admin/courses/[id]/topics/[id]" });
+    return NextResponse.json({ error: "Internal error" }, { status: 500 });
   }
 }
