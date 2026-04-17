@@ -10,41 +10,33 @@ async function requireAdmin() {
   return session;
 }
 
-// GET /api/admin/.../questions/[questionId]
 export async function GET(req, { params }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const { questionId } = await params;
   const question = await prisma.question.findUnique({
-    where: { id: params.questionId },
+    where: { id: questionId },
     include: { options: { orderBy: { order: "asc" } } },
   });
   if (!question) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json(question);
 }
 
-// PUT /api/admin/.../questions/[questionId]
 export async function PUT(req, { params }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const { questionId } = await params;
   try {
     const body = await req.json();
     const { options, ...questionData } = questionSchema.parse(body);
-
-    // Delete existing options and recreate (simplest approach)
     const question = await prisma.$transaction(async (tx) => {
-      await tx.option.deleteMany({ where: { questionId: params.questionId } });
-
+      await tx.option.deleteMany({ where: { questionId } });
       return tx.question.update({
-        where: { id: params.questionId },
+        where: { id: questionId },
         data: {
           ...questionData,
           options: {
-            create: options.map((o, idx) => ({
-              ...o,
-              order: o.order ?? idx,
-            })),
+            create: options.map((o, idx) => ({ ...o, order: o.order ?? idx })),
           },
         },
         include: { options: { orderBy: { order: "asc" } } },
@@ -52,21 +44,18 @@ export async function PUT(req, { params }) {
     });
     return NextResponse.json(question);
   } catch (err) {
-    if (err instanceof ZodError) {
-      return NextResponse.json({ error: err.errors }, { status: 400 });
-    }
+    if (err instanceof ZodError) return NextResponse.json({ error: err.errors }, { status: 400 });
     console.error(err);
     return NextResponse.json({ error: "Failed to update question" }, { status: 500 });
   }
 }
 
-// DELETE /api/admin/.../questions/[questionId]
 export async function DELETE(req, { params }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const { questionId } = await params;
   try {
-    await prisma.question.delete({ where: { id: params.questionId } });
+    await prisma.question.delete({ where: { id: questionId } });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);

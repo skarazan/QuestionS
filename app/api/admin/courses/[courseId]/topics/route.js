@@ -10,29 +10,27 @@ async function requireAdmin() {
   return session;
 }
 
-// GET /api/admin/courses/[courseId]/topics
 export async function GET(req, { params }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const { courseId } = await params;
   const topics = await prisma.topic.findMany({
-    where: { courseId: params.courseId },
+    where: { courseId },
     orderBy: { order: "asc" },
     include: { _count: { select: { questions: true } } },
   });
   return NextResponse.json(topics);
 }
 
-// POST /api/admin/courses/[courseId]/topics
 export async function POST(req, { params }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const { courseId } = await params;
   try {
     const body = await req.json();
     const data = topicSchema.parse(body);
     const topic = await prisma.topic.create({
-      data: { ...data, courseId: params.courseId },
+      data: { ...data, courseId },
     });
     return NextResponse.json(topic, { status: 201 });
   } catch (err) {

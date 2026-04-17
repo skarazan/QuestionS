@@ -1,11 +1,11 @@
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
-// GET /api/courses/[courseId] — course + published topics (public)
 export async function GET(req, { params }) {
   try {
+    const { courseId } = await params;
     const course = await prisma.course.findUnique({
-      where: { id: params.courseId },
+      where: { id: courseId },
       include: {
         topics: {
           where: { isPublished: true },

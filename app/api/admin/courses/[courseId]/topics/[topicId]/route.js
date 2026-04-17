@@ -10,13 +10,12 @@ async function requireAdmin() {
   return session;
 }
 
-// GET /api/admin/courses/[courseId]/topics/[topicId]
 export async function GET(req, { params }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const { topicId } = await params;
   const topic = await prisma.topic.findUnique({
-    where: { id: params.topicId },
+    where: { id: topicId },
     include: {
       questions: {
         orderBy: { order: "asc" },
@@ -31,35 +30,28 @@ export async function GET(req, { params }) {
   return NextResponse.json(topic);
 }
 
-// PUT /api/admin/courses/[courseId]/topics/[topicId]
 export async function PUT(req, { params }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const { topicId } = await params;
   try {
     const body = await req.json();
     const data = topicSchema.parse(body);
-    const topic = await prisma.topic.update({
-      where: { id: params.topicId },
-      data,
-    });
+    const topic = await prisma.topic.update({ where: { id: topicId }, data });
     return NextResponse.json(topic);
   } catch (err) {
-    if (err instanceof ZodError) {
-      return NextResponse.json({ error: err.errors }, { status: 400 });
-    }
+    if (err instanceof ZodError) return NextResponse.json({ error: err.errors }, { status: 400 });
     console.error(err);
     return NextResponse.json({ error: "Failed to update topic" }, { status: 500 });
   }
 }
 
-// DELETE /api/admin/courses/[courseId]/topics/[topicId]
 export async function DELETE(req, { params }) {
   const session = await requireAdmin();
   if (!session) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-
+  const { topicId } = await params;
   try {
-    await prisma.topic.delete({ where: { id: params.topicId } });
+    await prisma.topic.delete({ where: { id: topicId } });
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error(err);
