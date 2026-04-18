@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { CheckCircle, Circle, Timer } from "lucide-react";
+import { CheckCircle, Circle, Timer, Search } from "lucide-react";
 
 export default function MockTestForm({
   courseId,
@@ -26,6 +26,7 @@ export default function MockTestForm({
     mockTest?.durationMinutes ?? 60
   );
   const [isPublished, setIsPublished] = useState(mockTest?.isPublished ?? false);
+  const [search, setSearch] = useState("");
   const [selectedIds, setSelectedIds] = useState(
     new Set(
       mockTest?.questions?.map((mq) => mq.questionId ?? mq.question?.id) ?? []
@@ -194,13 +195,29 @@ export default function MockTestForm({
           </div>
         </div>
 
+        {topicQuestions.length > 0 && (
+          <div className="relative mb-2">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-slate-500 pointer-events-none" />
+            <Input
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              placeholder="Filter questions…"
+              className="pl-8 bg-slate-800 border-slate-600 text-white text-sm h-8"
+            />
+          </div>
+        )}
+
         {topicQuestions.length === 0 ? (
           <div className="bg-slate-800 border border-slate-700 rounded-lg p-6 text-center text-slate-500 text-sm">
             No questions exist in this topic yet. Add questions before creating a mock test.
           </div>
         ) : (
           <div className="bg-slate-800 border border-slate-700 rounded-lg max-h-96 overflow-y-auto">
-            {topicQuestions.map((q, idx) => {
+            {topicQuestions
+              .filter((q) =>
+                search ? q.text.toLowerCase().includes(search.toLowerCase()) : true
+              )
+              .map((q, idx) => {
               const checked = selectedIds.has(q.id);
               return (
                 <button

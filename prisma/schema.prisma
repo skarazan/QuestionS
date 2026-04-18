@@ -158,12 +158,13 @@ model QuizAttempt {
   user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
   topicId         String
   topic           Topic                 @relation(fields: [topicId], references: [id], onDelete: Cascade)
-  totalQuestions  Int
-  correctAnswers  Int                   @default(0)
-  scorePercentage Float?
-  startedAt       DateTime              @default(now())
-  completedAt     DateTime?
-  answers         QuizAttemptQuestion[]
+  totalQuestions      Int
+  correctAnswers      Int                   @default(0)
+  scorePercentage     Float?
+  selectedQuestionIds String[]              @default([])
+  startedAt           DateTime              @default(now())
+  completedAt         DateTime?
+  answers             QuizAttemptQuestion[]
   createdAt       DateTime              @default(now())
   updatedAt       DateTime              @updatedAt
 

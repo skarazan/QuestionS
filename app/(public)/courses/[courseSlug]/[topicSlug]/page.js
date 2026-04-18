@@ -16,15 +16,7 @@ async function getTopic(courseSlug, topicSlug) {
   const topic = await prisma.topic.findFirst({
     where: { courseId: course.id, slug: topicSlug, isPublished: true },
     include: {
-      questions: {
-        orderBy: { order: "asc" },
-        include: {
-          options: {
-            orderBy: { order: "asc" },
-            select: { id: true, text: true, order: true },
-          },
-        },
-      },
+      _count: { select: { questions: true } },
       mockTests: {
         where: { isPublished: true },
         orderBy: { createdAt: "desc" },
@@ -48,7 +40,9 @@ export default async function TopicPage({ params }) {
   const topic = await getTopic(courseSlug, topicSlug);
   if (!topic) notFound();
 
-  const isQuizActive = topic.questions.length > 0 && !!session;
+  const questionCount = topic._count.questions;
+  const hasQuestions = questionCount > 0;
+  const isQuizActive = hasQuestions && !!session;
 
   return (
     <div className={isQuizActive ? "w-full px-4 py-6 2xl:px-8" : "max-w-4xl mx-auto px-4 py-8"}>
@@ -70,7 +64,7 @@ export default async function TopicPage({ params }) {
             <p className="text-slate-400 mt-1">{topic.description}</p>
           )}
           <p className="text-slate-500 text-sm mt-2">
-            {topic.questions.length} question{topic.questions.length !== 1 ? "s" : ""}
+            {questionCount} question{questionCount !== 1 ? "s" : ""}
           </p>
         </div>
       )}
@@ -114,7 +108,7 @@ export default async function TopicPage({ params }) {
         </div>
       )}
 
-      {topic.questions.length === 0 ? (
+      {!hasQuestions ? (
         <div className="text-center py-16 text-slate-500">
           <p>No questions available for this topic yet.</p>
         </div>
@@ -132,7 +126,13 @@ export default async function TopicPage({ params }) {
           </div>
         </div>
       ) : (
-        <QuizContainer topic={topic} userId={session.user.id} />
+        <QuizContainer
+          topicId={topic.id}
+          topicTitle={topic.title}
+          topicSlug={topic.slug}
+          courseSlug={topic.course.slug}
+          totalQuestions={questionCount}
+        />
       )}
     </div>
   );

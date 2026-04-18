@@ -1,12 +1,21 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "sonner";
-import { CheckCircle, ChevronLeft, ChevronRight, Flag, Send, XCircle } from "lucide-react";
+import {
+  CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Flag,
+  Send,
+  XCircle,
+  Shuffle,
+  Loader2,
+} from "lucide-react";
 
 const difficultyColors = {
   EASY: "bg-emerald-900 text-emerald-300 border-emerald-700",
@@ -14,51 +23,73 @@ const difficultyColors = {
   HARD: "bg-red-900 text-red-300 border-red-700",
 };
 
+const COUNT_OPTIONS = [10, 25, 50, 100, 200];
+
 /**
- * UWorld-style practice quiz:
- * - Per-question submit: user selects → clicks "Submit Answer" → immediate feedback + explanation
- * - Locked after submit; free nav before submit
- * - Full-width layout on desktop; submit button at top
+ * UWorld-style practice quiz.
+ * Props: { topicId, topicTitle, topicSlug, courseSlug, totalQuestions }
+ *
+ * Flow:
+ *   1. Show count selector (how many questions for this session).
+ *   2. POST /api/quiz/start → get attemptId (server picks questions, excludes last-5-boot).
+ *   3. GET /api/quiz/[attemptId]/questions → load selected questions.
+ *   4. Per-question submit with inline feedback.
+ *   5. POST /api/quiz/[attemptId]/complete → redirect to results.
  */
-export default function QuizContainer({ topic }) {
+export default function QuizContainer({
+  topicId,
+  topicTitle,
+  topicSlug,
+  courseSlug,
+  totalQuestions,
+}) {
   const router = useRouter();
-  const questions = topic.questions;
+
+  // Phases: "select" | "loading" | "quiz"
+  const [phase, setPhase] = useState("select");
+  const [selectedCount, setSelectedCount] = useState(
+    Math.min(25, totalQuestions)
+  );
+  const [questions, setQuestions] = useState([]);
+  const [attemptId, setAttemptId] = useState(null);
+  const startedRef = useRef(false);
 
   // answerState[qId] = { selectedOptionId, submitted, isCorrect, correctOptionId, explanation }
   const [answerState, setAnswerState] = useState({});
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [attemptId, setAttemptId] = useState(null);
-  const [starting, setStarting] = useState(true);
   const [submittingQ, setSubmittingQ] = useState(false);
   const [completing, setCompleting] = useState(false);
-  const startedRef = useRef(false);
 
-  useEffect(() => {
+  async function startQuiz(count) {
     if (startedRef.current) return;
     startedRef.current = true;
-    (async () => {
-      try {
-        const res = await fetch("/api/quiz/start", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ topicId: topic.id }),
-        });
-        if (!res.ok) throw new Error("start failed");
-        const data = await res.json();
-        setAttemptId(data.attemptId);
-      } catch {
-        toast.error("Could not start quiz. Please reload.");
-      } finally {
-        setStarting(false);
-      }
-    })();
-  }, [topic.id]);
+    setPhase("loading");
 
-  const current = questions[currentIdx];
-  const currentState = answerState[current.id] || {};
-  const submittedCount = Object.values(answerState).filter((s) => s.submitted).length;
-  const progress = (submittedCount / questions.length) * 100;
-  const allSubmitted = submittedCount === questions.length;
+    try {
+      const startRes = await fetch("/api/quiz/start", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ topicId, count }),
+      });
+      if (!startRes.ok) {
+        const err = await startRes.json().catch(() => ({}));
+        throw new Error(err.error || "Start failed");
+      }
+      const { attemptId: aid } = await startRes.json();
+
+      const qRes = await fetch(`/api/quiz/${aid}/questions`);
+      if (!qRes.ok) throw new Error("Failed to load questions");
+      const { questions: qs } = await qRes.json();
+
+      setAttemptId(aid);
+      setQuestions(qs);
+      setPhase("quiz");
+    } catch (err) {
+      toast.error(typeof err?.message === "string" ? err.message : "Could not start quiz");
+      startedRef.current = false;
+      setPhase("select");
+    }
+  }
 
   function selectOption(qId, optionId) {
     if (answerState[qId]?.submitted) return;
@@ -69,6 +100,8 @@ export default function QuizContainer({ topic }) {
   }
 
   async function submitCurrent() {
+    const current = questions[currentIdx];
+    const currentState = answerState[current.id] || {};
     if (!attemptId || !currentState.selectedOptionId || currentState.submitted || submittingQ) return;
     setSubmittingQ(true);
     try {
@@ -82,7 +115,7 @@ export default function QuizContainer({ topic }) {
       });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || "submit failed");
+        throw new Error(data.error || "Submit failed");
       }
       const data = await res.json();
       setAnswerState((prev) => ({
@@ -104,33 +137,94 @@ export default function QuizContainer({ topic }) {
 
   async function finishQuiz() {
     if (!attemptId || completing) return;
+    const submittedCount = Object.values(answerState).filter((s) => s.submitted).length;
     const remaining = questions.length - submittedCount;
     if (remaining > 0) {
-      const ok = window.confirm(`${remaining} question${remaining > 1 ? "s" : ""} not answered. Finish anyway?`);
+      const ok = window.confirm(
+        `${remaining} question${remaining > 1 ? "s" : ""} not answered. Finish anyway?`
+      );
       if (!ok) return;
     }
     setCompleting(true);
     try {
       const res = await fetch(`/api/quiz/${attemptId}/complete`, { method: "POST" });
       if (!res.ok) throw new Error("complete failed");
-      router.push(`/courses/${topic.course.slug}/${topic.slug}/results/${attemptId}`);
+      router.push(`/courses/${courseSlug}/${topicSlug}/results/${attemptId}`);
     } catch {
       toast.error("Could not finish quiz. Please try again.");
       setCompleting(false);
     }
   }
 
-  if (starting) {
-    return <div className="text-center text-slate-400 py-16">Loading quiz…</div>;
+  // ── Count selector ─────────────────────────────────────────────────────────
+  if (phase === "select") {
+    const opts = COUNT_OPTIONS.filter((n) => n <= totalQuestions);
+    if (!opts.includes(totalQuestions) && totalQuestions > 0) opts.push(totalQuestions);
+
+    return (
+      <div className="max-w-lg mx-auto bg-[#1f2937] border border-slate-700 rounded-xl p-6">
+        <div className="flex items-center gap-2 mb-1">
+          <Shuffle className="h-4 w-4 text-blue-400" />
+          <h2 className="text-white font-semibold">Start Practice Quiz</h2>
+        </div>
+        <p className="text-slate-400 text-sm mb-5">
+          {totalQuestions} questions available · previously seen questions excluded for first 5 sessions
+        </p>
+
+        <div className="mb-4">
+          <p className="text-slate-300 text-sm mb-2">How many questions?</p>
+          <div className="flex flex-wrap gap-2">
+            {opts.map((n) => (
+              <button
+                key={n}
+                onClick={() => setSelectedCount(n)}
+                className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  selectedCount === n
+                    ? "bg-blue-600 border-blue-500 text-white"
+                    : "bg-slate-800 border-slate-700 text-slate-300 hover:border-slate-500"
+                }`}
+              >
+                {n === totalQuestions ? `All (${n})` : n}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <Button
+          onClick={() => startQuiz(selectedCount)}
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+        >
+          Start {selectedCount} Question{selectedCount !== 1 ? "s" : ""}
+        </Button>
+      </div>
+    );
   }
+
+  // ── Loading ────────────────────────────────────────────────────────────────
+  if (phase === "loading") {
+    return (
+      <div className="text-center text-slate-400 py-16">
+        <Loader2 className="h-6 w-6 mx-auto animate-spin mb-3" />
+        Setting up your quiz…
+      </div>
+    );
+  }
+
+  // ── Quiz ───────────────────────────────────────────────────────────────────
+  const current = questions[currentIdx];
+  if (!current) return null;
+  const currentState = answerState[current.id] || {};
+  const submittedCount = Object.values(answerState).filter((s) => s.submitted).length;
+  const progress = (submittedCount / questions.length) * 100;
+  const allSubmitted = submittedCount === questions.length;
 
   return (
     <div className="flex flex-col gap-4">
-      {/* TOP toolbar: title, progress, finish button */}
+      {/* TOP toolbar */}
       <div className="flex items-center justify-between gap-4 bg-[#1e2a3a] border border-slate-700 rounded-lg px-4 py-3 sticky top-0 z-10 backdrop-blur">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 mb-1.5">
-            <h1 className="text-white font-semibold truncate">{topic.title}</h1>
+            <h1 className="text-white font-semibold truncate">{topicTitle}</h1>
             <span className="text-slate-500 text-xs font-mono whitespace-nowrap">
               {submittedCount}/{questions.length} answered
             </span>
@@ -177,18 +271,10 @@ export default function QuizContainer({ topic }) {
             })}
           </div>
           <div className="mt-4 space-y-1 text-xs text-slate-500">
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-sm bg-emerald-800" /> Correct
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-sm bg-red-900" /> Incorrect
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-sm bg-blue-900" /> Selected
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-sm bg-slate-700" /> Unseen
-            </div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-emerald-800" /> Correct</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-red-900" /> Incorrect</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-blue-900" /> Selected</div>
+            <div className="flex items-center gap-2"><div className="w-3 h-3 rounded-sm bg-slate-700" /> Unseen</div>
           </div>
         </aside>
 
@@ -209,13 +295,9 @@ export default function QuizContainer({ topic }) {
                   }`}
                 >
                   {currentState.isCorrect ? (
-                    <>
-                      <CheckCircle className="h-3 w-3 mr-1" /> Correct
-                    </>
+                    <><CheckCircle className="h-3 w-3 mr-1" /> Correct</>
                   ) : (
-                    <>
-                      <XCircle className="h-3 w-3 mr-1" /> Incorrect
-                    </>
+                    <><XCircle className="h-3 w-3 mr-1" /> Incorrect</>
                   )}
                 </Badge>
               )}
@@ -231,8 +313,7 @@ export default function QuizContainer({ topic }) {
               const letters = ["A", "B", "C", "D", "E", "F"];
               const selected = currentState.selectedOptionId === option.id;
               const isCorrect = currentState.submitted && currentState.correctOptionId === option.id;
-              const isWrongSelected =
-                currentState.submitted && selected && !currentState.isCorrect;
+              const isWrongSelected = currentState.submitted && selected && !currentState.isCorrect;
 
               let cls = "border-slate-600 bg-slate-800/40 text-slate-300 hover:border-slate-400 hover:text-white";
               if (currentState.submitted) {
@@ -262,12 +343,8 @@ export default function QuizContainer({ topic }) {
                     {letters[optIdx]}
                   </span>
                   <span className="leading-relaxed flex-1">{option.text}</span>
-                  {currentState.submitted && isCorrect && (
-                    <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0" />
-                  )}
-                  {currentState.submitted && isWrongSelected && (
-                    <XCircle className="h-5 w-5 text-red-400 flex-shrink-0" />
-                  )}
+                  {currentState.submitted && isCorrect && <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0" />}
+                  {currentState.submitted && isWrongSelected && <XCircle className="h-5 w-5 text-red-400 flex-shrink-0" />}
                 </button>
               );
             })}
@@ -275,9 +352,7 @@ export default function QuizContainer({ topic }) {
 
           {currentState.submitted && currentState.explanation && (
             <div className="bg-slate-800/60 border border-slate-700 rounded-lg p-4 mb-5">
-              <p className="text-slate-300 text-sm uppercase tracking-wider font-semibold mb-2">
-                Explanation
-              </p>
+              <p className="text-slate-300 text-sm uppercase tracking-wider font-semibold mb-2">Explanation</p>
               <div className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
                 {currentState.explanation}
               </div>
