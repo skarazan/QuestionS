@@ -219,9 +219,9 @@ export default function QuizContainer({
   const allSubmitted = submittedCount === questions.length;
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-4 h-[calc(100vh-5rem)]">
       {/* TOP toolbar */}
-      <div className="flex items-center justify-between gap-4 bg-[#1e2a3a] border border-slate-700 rounded-lg px-4 py-3 sticky top-0 z-10 backdrop-blur">
+      <div className="flex items-center justify-between gap-4 bg-[#1e2a3a] border border-slate-700 rounded-lg px-4 py-3 flex-shrink-0">
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-3 mb-1.5">
             <h1 className="text-white font-semibold truncate">{topicTitle}</h1>
@@ -242,9 +242,9 @@ export default function QuizContainer({
         </Button>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex gap-4 flex-1 min-h-0">
         {/* Question navigator */}
-        <aside className="hidden md:flex flex-col gap-2 w-44 flex-shrink-0">
+        <aside className="hidden md:flex flex-col gap-2 w-44 flex-shrink-0 overflow-y-auto">
           <p className="text-slate-500 text-xs uppercase tracking-wider font-medium">Questions</p>
           <div className="flex flex-wrap gap-1.5">
             {questions.map((q, idx) => {
@@ -279,7 +279,7 @@ export default function QuizContainer({
         </aside>
 
         {/* Main question card */}
-        <main className="flex-1 min-w-0 bg-[#243447] border border-slate-700 rounded-lg p-5 md:p-6">
+        <main className="flex-1 min-w-0 overflow-y-auto bg-[#243447] border border-slate-700 rounded-lg p-5 md:p-6">
           <div className="flex items-start justify-between gap-4 mb-4">
             <div className="flex items-center gap-2 flex-wrap">
               <span className="text-slate-500 text-sm font-mono">#{currentIdx + 1}</span>
