@@ -34,8 +34,34 @@ model User {
   sessions      Session[]
   attempts      QuizAttempt[]
   mockAttempts  MockAttempt[]
+  subscription  Subscription?
   createdAt     DateTime       @default(now())
   updatedAt     DateTime       @updatedAt
+}
+
+model Subscription {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan      String   // "15d" | "1mo" | "1yr" | "2yr"
+  grantedAt DateTime @default(now())
+  expiresAt DateTime
+  grantedBy String?
+  source    String   @default("admin") // "admin" | "stripe" (Phase 2)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model SiteSettings {
+  id            String   @id @default("singleton")
+  price15dCents Int?
+  price1moCents Int?
+  price1yrCents Int?
+  price2yrCents Int?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model Account {

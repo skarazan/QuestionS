@@ -2,9 +2,10 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { hasActiveSubscription } from "@/lib/subscription";
+import Paywall from "@/components/subscription/Paywall";
 import MockTestIntro from "@/components/mock/MockTestIntro";
 import { ArrowLeft } from "lucide-react";
-import { Button } from "@/components/ui/button";
 
 async function getMockTest(courseSlug, topicSlug, mockTestId) {
   const mock = await prisma.mockTest.findFirst({
@@ -37,6 +38,11 @@ export default async function MockTestIntroPage({ params }) {
   const session = await auth();
   const mock = await getMockTest(courseSlug, topicSlug, mockTestId);
   if (!mock) notFound();
+
+  const isAdmin = session?.user?.role === "admin";
+  const userId = session?.user?.id;
+  const hasAccess =
+    isAdmin || (userId && (await hasActiveSubscription(userId)));
 
   // Check for existing attempt if logged in
   let existing = null;
@@ -80,31 +86,13 @@ export default async function MockTestIntroPage({ params }) {
         <ArrowLeft className="h-4 w-4" /> Back to Topic
       </Link>
 
-      {!session ? (
-        <div className="bg-[#243447] border border-slate-700 rounded-lg p-8 text-center">
-          <h2 className="text-white text-lg font-semibold mb-2">
-            Sign in to start the mock test
-          </h2>
-          <p className="text-slate-400 mb-4">
-            Create a free account to take timed exams and track your results.
-          </p>
-          <div className="flex justify-center gap-3">
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
-              <Link
-                href={`/login?callbackUrl=/courses/${mock.topic.course.slug}/${mock.topic.slug}/mock-tests/${mock.id}`}
-              >
-                Sign In
-              </Link>
-            </Button>
-            <Button
-              asChild
-              variant="outline"
-              className="border-slate-600 text-slate-300 hover:bg-slate-700"
-            >
-              <Link href="/register">Register Free</Link>
-            </Button>
-          </div>
-        </div>
+      {!hasAccess ? (
+        <Paywall
+          title="Subscribe to start this mock test"
+          subtitle="Timed exam, server-side scoring, and full review — unlocked with any plan."
+          callbackUrl={`/courses/${mock.topic.course.slug}/${mock.topic.slug}/mock-tests/${mock.id}`}
+          isSignedIn={!!session}
+        />
       ) : (
         <MockTestIntro
           mockTest={{

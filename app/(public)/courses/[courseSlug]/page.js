@@ -1,11 +1,14 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import prisma from "@/lib/prisma";
+import { auth } from "@/lib/auth";
+import { hasActiveSubscription, getSubscription, daysRemaining } from "@/lib/subscription";
+import Paywall from "@/components/subscription/Paywall";
 import { Badge } from "@/components/ui/badge";
 import { BookOpen, ChevronRight, ArrowLeft } from "lucide-react";
 
-// Cache topic listings for 60s (public, low-churn content)
-export const revalidate = 60;
+// Per-request rendering — content is gated by subscription, can't cache across users.
+export const dynamic = "force-dynamic";
 
 async function getCourse(slug) {
   return prisma.course.findUnique({
@@ -37,15 +40,48 @@ export default async function CoursePage({ params }) {
   const course = await getCourse(courseSlug);
   if (!course) notFound();
 
-  const difficultyColors = {
-    EASY: "bg-emerald-900 text-emerald-300",
-    MEDIUM: "bg-amber-900 text-amber-300",
-    HARD: "bg-red-900 text-red-300",
-  };
+  const session = await auth();
+  const isAdmin = session?.user?.role === "admin";
+  const userId = session?.user?.id;
+  const hasAccess = isAdmin || (userId && (await hasActiveSubscription(userId)));
+
+  if (!hasAccess) {
+    return (
+      <div className="max-w-4xl mx-auto px-4 py-10">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1 text-slate-400 hover:text-white text-sm mb-6 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" /> All Courses
+        </Link>
+        <div className="mb-8">
+          <h1 className="text-3xl font-bold text-white mb-2">{course.title}</h1>
+          {course.description && (
+            <p className="text-slate-400">{course.description}</p>
+          )}
+          <div className="mt-3">
+            <Badge className="bg-slate-700 text-slate-300">
+              {course.topics.length} topic
+              {course.topics.length !== 1 ? "s" : ""}
+            </Badge>
+          </div>
+        </div>
+        <Paywall
+          title="Subscribe to access this course"
+          subtitle={`One subscription unlocks ${course.title} and every other course on QuestionS.`}
+          callbackUrl={`/courses/${course.slug}`}
+          isSignedIn={!!session}
+        />
+      </div>
+    );
+  }
+
+  // Has access — show topics + remaining days banner (non-admin)
+  const sub = !isAdmin && userId ? await getSubscription(userId) : null;
+  const daysLeft = sub ? daysRemaining(sub.expiresAt) : null;
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-10">
-      {/* Back */}
       <Link
         href="/"
         className="inline-flex items-center gap-1 text-slate-400 hover:text-white text-sm mb-6 transition-colors"
@@ -53,20 +89,26 @@ export default async function CoursePage({ params }) {
         <ArrowLeft className="h-4 w-4" /> All Courses
       </Link>
 
-      {/* Course header */}
       <div className="mb-8">
         <h1 className="text-3xl font-bold text-white mb-2">{course.title}</h1>
         {course.description && (
           <p className="text-slate-400">{course.description}</p>
         )}
-        <div className="mt-3">
+        <div className="mt-3 flex items-center gap-2 flex-wrap">
           <Badge className="bg-slate-700 text-slate-300">
             {course.topics.length} topic{course.topics.length !== 1 ? "s" : ""}
           </Badge>
+          {daysLeft != null && (
+            <Badge className="bg-emerald-900 text-emerald-300">
+              Subscribed · {daysLeft} day{daysLeft !== 1 ? "s" : ""} left
+            </Badge>
+          )}
+          {isAdmin && (
+            <Badge className="bg-blue-900 text-blue-300">Admin preview</Badge>
+          )}
         </div>
       </div>
 
-      {/* Topics */}
       {course.topics.length === 0 ? (
         <div className="text-center py-16 text-slate-500">
           <BookOpen className="mx-auto h-10 w-10 mb-3 opacity-40" />
@@ -75,10 +117,7 @@ export default async function CoursePage({ params }) {
       ) : (
         <div className="space-y-3">
           {course.topics.map((topic, idx) => (
-            <Link
-              key={topic.id}
-              href={`/courses/${course.slug}/${topic.slug}`}
-            >
+            <Link key={topic.id} href={`/courses/${course.slug}/${topic.slug}`}>
               <div className="bg-[#243447] border border-slate-700 rounded-lg px-5 py-4 hover:border-blue-500 hover:bg-[#2a3d55] transition-all group flex items-center justify-between cursor-pointer">
                 <div className="flex items-center gap-4">
                   <span className="text-slate-500 text-sm font-mono w-6 text-right">

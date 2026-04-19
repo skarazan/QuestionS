@@ -3,6 +3,7 @@ import { auth } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { checkLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
+import { hasActiveSubscription } from "@/lib/subscription";
 
 /**
  * POST /api/mock-tests/[mockTestId]/start
@@ -23,6 +24,17 @@ export async function POST(req, { params }) {
     }
 
     const { mockTestId } = await params;
+
+    // Subscription gate (admins bypass)
+    if (session.user.role !== "admin") {
+      const ok = await hasActiveSubscription(session.user.id);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "Subscription required" },
+          { status: 403 }
+        );
+      }
+    }
 
     const mock = await prisma.mockTest.findFirst({
       where: { id: mockTestId, isPublished: true },

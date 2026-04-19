@@ -2,6 +2,8 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import prisma from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { hasActiveSubscription } from "@/lib/subscription";
+import Paywall from "@/components/subscription/Paywall";
 import QuizContainer from "@/components/quiz/QuizContainer";
 import { ArrowLeft, Timer, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -40,9 +42,14 @@ export default async function TopicPage({ params }) {
   const topic = await getTopic(courseSlug, topicSlug);
   if (!topic) notFound();
 
+  const isAdmin = session?.user?.role === "admin";
+  const userId = session?.user?.id;
+  const hasAccess =
+    isAdmin || (userId && (await hasActiveSubscription(userId)));
+
   const questionCount = topic._count.questions;
   const hasQuestions = questionCount > 0;
-  const isQuizActive = hasQuestions && !!session;
+  const isQuizActive = hasQuestions && hasAccess;
 
   return (
     <div className={isQuizActive ? "w-full px-4 py-6 2xl:px-8" : "max-w-4xl mx-auto px-4 py-8"}>
@@ -112,19 +119,13 @@ export default async function TopicPage({ params }) {
         <div className="text-center py-16 text-slate-500">
           <p>No questions available for this topic yet.</p>
         </div>
-      ) : !session ? (
-        <div className="bg-[#243447] border border-slate-700 rounded-lg p-8 text-center">
-          <h2 className="text-white text-lg font-semibold mb-2">Sign in to take this quiz</h2>
-          <p className="text-slate-400 mb-4">Create a free account to track your progress and see how you rank.</p>
-          <div className="flex justify-center gap-3">
-            <Button asChild className="bg-blue-600 hover:bg-blue-700">
-              <Link href={`/login?callbackUrl=/courses/${topic.course.slug}/${topic.slug}`}>Sign In</Link>
-            </Button>
-            <Button asChild variant="outline" className="border-slate-600 text-slate-300 hover:bg-slate-700">
-              <Link href="/register">Register Free</Link>
-            </Button>
-          </div>
-        </div>
+      ) : !hasAccess ? (
+        <Paywall
+          title="Subscribe to start this quiz"
+          subtitle="Track your progress, review explanations, and unlock every course on QuestionS."
+          callbackUrl={`/courses/${topic.course.slug}/${topic.slug}`}
+          isSignedIn={!!session}
+        />
       ) : (
         <QuizContainer
           topicId={topic.id}

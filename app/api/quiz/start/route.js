@@ -4,6 +4,7 @@ import prisma from "@/lib/prisma";
 import { z, ZodError } from "zod";
 import { checkLimit } from "@/lib/ratelimit";
 import { logger } from "@/lib/logger";
+import { hasActiveSubscription } from "@/lib/subscription";
 
 const startSchema = z.object({
   topicId: z.string().cuid(),
@@ -45,6 +46,17 @@ export async function POST(req) {
     }
 
     const { topicId, count } = startSchema.parse(await req.json());
+
+    // Subscription gate (admins bypass)
+    if (session.user.role !== "admin") {
+      const ok = await hasActiveSubscription(session.user.id);
+      if (!ok) {
+        return NextResponse.json(
+          { error: "Subscription required" },
+          { status: 403 }
+        );
+      }
+    }
 
     // All question IDs for this topic
     const allQuestions = await prisma.question.findMany({
