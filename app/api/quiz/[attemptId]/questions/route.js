@@ -41,12 +41,13 @@ export async function GET(req, { params }) {
       select: {
         id: true,
         text: true,
+        imageUrl: true,
         difficulty: true,
         showAnswers: true,
         showExplanation: true,
         options: {
           orderBy: { order: "asc" },
-          select: { id: true, text: true, order: true },
+          select: { id: true, text: true, imageUrl: true, order: true },
         },
       },
     });

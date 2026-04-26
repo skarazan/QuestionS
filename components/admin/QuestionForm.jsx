@@ -16,21 +16,25 @@ import {
 } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Plus, Trash2, CheckCircle, Circle } from "lucide-react";
+import ImageUpload from "@/components/admin/ImageUpload";
 
-const defaultOption = () => ({ text: "", isCorrect: false });
+const defaultOption = () => ({ text: "", imageUrl: null, isCorrect: false });
 
 export default function QuestionForm({ courseId, topicId, question }) {
   const router = useRouter();
   const isEdit = !!question;
   const [loading, setLoading] = useState(false);
   const [difficulty, setDifficulty] = useState(question?.difficulty || "MEDIUM");
-  const [showExplanation, setShowExplanation] = useState(
-    question?.showExplanation ?? true
-  );
+  const [showExplanation, setShowExplanation] = useState(question?.showExplanation ?? true);
   const [showAnswers, setShowAnswers] = useState(question?.showAnswers ?? true);
+  const [questionImageUrl, setQuestionImageUrl] = useState(question?.imageUrl ?? null);
   const [options, setOptions] = useState(
     question?.options?.length > 0
-      ? question.options.map((o) => ({ text: o.text, isCorrect: o.isCorrect }))
+      ? question.options.map((o) => ({
+          text: o.text,
+          imageUrl: o.imageUrl ?? null,
+          isCorrect: o.isCorrect,
+        }))
       : [defaultOption(), defaultOption(), defaultOption(), defaultOption()]
   );
 
@@ -45,9 +49,7 @@ export default function QuestionForm({ courseId, topicId, question }) {
   }
 
   function updateOption(idx, field, value) {
-    setOptions(
-      options.map((o, i) => (i === idx ? { ...o, [field]: value } : o))
-    );
+    setOptions(options.map((o, i) => (i === idx ? { ...o, [field]: value } : o)));
   }
 
   function setCorrect(idx) {
@@ -60,7 +62,6 @@ export default function QuestionForm({ courseId, topicId, question }) {
 
     const form = new FormData(e.target);
 
-    // Validate: at least one correct
     const correctCount = options.filter((o) => o.isCorrect).length;
     if (correctCount !== 1) {
       toast.error("Exactly one option must be marked as correct");
@@ -75,12 +76,18 @@ export default function QuestionForm({ courseId, topicId, question }) {
 
     const data = {
       text: form.get("text"),
+      imageUrl: questionImageUrl || undefined,
       explanation: form.get("explanation") || undefined,
       difficulty,
       showExplanation,
       showAnswers,
       order: parseInt(form.get("order") || "0"),
-      options: options.map((o, idx) => ({ ...o, order: idx })),
+      options: options.map((o, idx) => ({
+        text: o.text,
+        imageUrl: o.imageUrl || undefined,
+        isCorrect: o.isCorrect,
+        order: idx,
+      })),
     };
 
     const url = isEdit
@@ -119,6 +126,16 @@ export default function QuestionForm({ courseId, topicId, question }) {
           placeholder="Enter the question..."
           rows={4}
           className="mt-1 bg-slate-800 border-slate-600 text-white resize-none"
+        />
+      </div>
+
+      {/* Question image */}
+      <div>
+        <Label className="text-slate-300 mb-2 block">Question Image (optional)</Label>
+        <ImageUpload
+          value={questionImageUrl}
+          onChange={setQuestionImageUrl}
+          label="Attach a diagram, chart, or image to this question"
         />
       </div>
 
@@ -166,44 +183,54 @@ export default function QuestionForm({ courseId, topicId, question }) {
             <Plus className="h-3.5 w-3.5 mr-1" /> Add Option
           </Button>
         </div>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {options.map((opt, idx) => (
-            <div key={idx} className="flex items-start gap-3">
-              {/* Correct radio */}
-              <button
-                type="button"
-                onClick={() => setCorrect(idx)}
-                className="mt-2.5 flex-shrink-0 focus:outline-none"
-                title="Mark as correct answer"
-              >
-                {opt.isCorrect ? (
-                  <CheckCircle className="h-5 w-5 text-emerald-400" />
-                ) : (
-                  <Circle className="h-5 w-5 text-slate-500 hover:text-slate-300" />
-                )}
-              </button>
-              {/* Letter label */}
-              <span className="text-slate-500 text-sm font-mono mt-2.5 w-5 flex-shrink-0">
-                {letters[idx]}
-              </span>
-              {/* Text input */}
-              <Input
-                value={opt.text}
-                onChange={(e) => updateOption(idx, "text", e.target.value)}
-                placeholder={`Option ${letters[idx]}`}
-                className={`flex-1 bg-slate-800 border-slate-600 text-white ${
-                  opt.isCorrect ? "border-emerald-600" : ""
-                }`}
-              />
-              {/* Remove */}
-              <button
-                type="button"
-                onClick={() => removeOption(idx)}
-                disabled={options.length <= 2}
-                className="mt-2.5 text-slate-600 hover:text-red-400 disabled:opacity-30 flex-shrink-0 transition-colors"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
+            <div
+              key={idx}
+              className="bg-slate-800/40 border border-slate-700 rounded-lg p-3 space-y-3"
+            >
+              {/* Text row */}
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => setCorrect(idx)}
+                  className="flex-shrink-0 focus:outline-none"
+                  title="Mark as correct answer"
+                >
+                  {opt.isCorrect ? (
+                    <CheckCircle className="h-5 w-5 text-emerald-400" />
+                  ) : (
+                    <Circle className="h-5 w-5 text-slate-500 hover:text-slate-300" />
+                  )}
+                </button>
+                <span className="text-slate-500 text-sm font-mono w-5 flex-shrink-0">
+                  {letters[idx]}
+                </span>
+                <Input
+                  value={opt.text}
+                  onChange={(e) => updateOption(idx, "text", e.target.value)}
+                  placeholder={`Option ${letters[idx]}`}
+                  className={`flex-1 bg-slate-800 border-slate-600 text-white ${
+                    opt.isCorrect ? "border-emerald-600" : ""
+                  }`}
+                />
+                <button
+                  type="button"
+                  onClick={() => removeOption(idx)}
+                  disabled={options.length <= 2}
+                  className="text-slate-600 hover:text-red-400 disabled:opacity-30 flex-shrink-0 transition-colors"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+              {/* Option image */}
+              <div className="ml-14">
+                <ImageUpload
+                  value={opt.imageUrl}
+                  onChange={(url) => updateOption(idx, "imageUrl", url)}
+                  label="Option image (optional)"
+                />
+              </div>
             </div>
           ))}
         </div>

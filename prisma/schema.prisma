@@ -146,6 +146,7 @@ model Question {
   topicId         String
   topic           Topic                 @relation(fields: [topicId], references: [id], onDelete: Cascade)
   text            String                @db.Text
+  imageUrl        String?
   explanation     String?               @db.Text
   showExplanation Boolean               @default(true)
   showAnswers     Boolean               @default(true)
@@ -166,6 +167,7 @@ model Option {
   questionId String
   question   Question @relation(fields: [questionId], references: [id], onDelete: Cascade)
   text       String   @db.Text
+  imageUrl   String?
   isCorrect  Boolean  @default(false)
   order      Int      @default(0)
   createdAt  DateTime @default(now())

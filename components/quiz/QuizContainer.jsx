@@ -16,6 +16,7 @@ import {
   Shuffle,
   Loader2,
 } from "lucide-react";
+import Image from "next/image";
 
 const difficultyColors = {
   EASY: "bg-emerald-900 text-emerald-300 border-emerald-700",
@@ -304,9 +305,21 @@ export default function QuizContainer({
             </div>
           </div>
 
-          <p className="text-white text-base md:text-lg leading-relaxed mb-6 whitespace-pre-wrap">
+          <p className="text-white text-base md:text-lg leading-relaxed mb-4 whitespace-pre-wrap">
             {current.text}
           </p>
+
+          {current.imageUrl && (
+            <div className="mb-6 rounded-lg overflow-hidden bg-slate-900 border border-slate-700 flex justify-center">
+              <Image
+                src={current.imageUrl}
+                alt="Question diagram"
+                width={800}
+                height={400}
+                className="object-contain max-h-72 w-auto"
+              />
+            </div>
+          )}
 
           <div className="space-y-2 mb-5">
             {current.options.map((option, optIdx) => {
@@ -342,7 +355,20 @@ export default function QuizContainer({
                   >
                     {letters[optIdx]}
                   </span>
-                  <span className="leading-relaxed flex-1">{option.text}</span>
+                  <span className="leading-relaxed flex-1">
+                    {option.text}
+                    {option.imageUrl && (
+                      <span className="block mt-2">
+                        <Image
+                          src={option.imageUrl}
+                          alt={`Option ${letters[optIdx]}`}
+                          width={400}
+                          height={200}
+                          className="object-contain max-h-32 rounded"
+                        />
+                      </span>
+                    )}
+                  </span>
                   {currentState.submitted && isCorrect && <CheckCircle className="h-5 w-5 text-emerald-400 flex-shrink-0" />}
                   {currentState.submitted && isWrongSelected && <XCircle className="h-5 w-5 text-red-400 flex-shrink-0" />}
                 </button>

@@ -59,12 +59,14 @@ export async function GET(req, { params }) {
       return {
         id: q.id,
         text: q.text,
+        imageUrl: q.imageUrl ?? null,
         difficulty: q.difficulty,
         order: mq.order,
         explanation: isCompleted ? q.explanation : null,
         options: q.options.map((o) => ({
           id: o.id,
           text: o.text,
+          imageUrl: o.imageUrl ?? null,
           order: o.order,
           ...(isCompleted ? { isCorrect: o.isCorrect } : {}),
         })),
